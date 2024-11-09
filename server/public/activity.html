@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 | Iniciar Atividade</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            box-sizing: border-box;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #1DB954;
+            margin: 20px 0;
+        }
+        p {
+            margin: 10px 0;
+        }
+        .hidden {
+            display: none;
+        }
+        .track-info {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .track-info img {
+            max-width: 100px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .track-infos-texts {
+            display: flex;
+            flex-direction: column;
+        }
+        .track-infos-texts p {
+            margin: 0.5rem 0;
+        }
+        #infoStart {
+            text-align: center;
+        }
+        #searchButton,
+        #redirectButton,
+        #startButton {
+            padding: 10px 20px;
+            background-color: #1DB954;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #actions {
+            text-align: center;
+            margin-top: 20px;
+        }
+        #status {
+            text-align: center;
+            margin-top: 20px;
+        }
+        #status p {
+            font-size: 1.5rem;
+            margin: 10px 0;
+        }
+        #time-min, #time-sec {
+            font-size: 2rem;
+            color: #1DB954;
+        }
+
+        #activity-finished {
+            text-align: center;
+            margin-top: 20px;
+        }
+        #activity-finished p {
+            font-size: 1.5rem;
+            margin: 10px 0;
+        }
+        #activity-finished span {
+            color: #1DB954;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="infoStart">
+            <h1>Instruções para Iniciar a Atividade</h1>
+            <p>Para iniciar a atividade, clique no botão abaixo. Certifique-se de que há uma música tocando no Spotify.</p>
+            <button id="searchButton" onclick="search()">Buscar Música</button>
+        </div>
+        
+        <div id="trackInfo" class="hidden">
+            <h2>Música Escolhida</h2>
+            <div class="track-info">
+                <img id="trackAlbumImg" src="" alt="Imagem do Álbum">
+                <div class="track-infos-texts">
+                    <p><strong>Nome:</strong> <span id="trackName"></span></p>
+                    <p><strong>Artista:</strong> <span id="trackArtist"></span></p>
+                    <p><strong>Duração:</strong> <span id="trackDuration"></span></p>
+                </div>
+            </div>
+        </div>
+    
+        <div id="actions" class="hidden">
+            <button id="startButton" onclick="start()">Iniciar Atividade</button>
+        </div>
+    
+        <div id="status" class="hidden">
+            <h2>Agora é com você. Mexa-se!</h2>
+            <h4>Tempo restante:</h4>
+            <p><span id="time-min">00</span>:<span id="time-sec">00</span></p>
+        </div>
+
+        <div id="activity-finished" class="hidden">
+            <h2>Atividade Finalizada!</h2>
+            <p>Parabéns! Você dançou por <span id="activity-time"></span> minutos e queimou <span id="activity-calories"></span> calorias.</p>
+            <button id="searchButton" onclick="search()">Buscar outra Música</button>
+            <button id="redirectButton" onclick="goBackToProfile()">Voltar ao Início</button>
+        </div>
+    
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = urlParams.get('access_token');
+        const userId = urlParams.get('user_id');
+
+        // Checar se tem um token de acesso
+        if (!accessToken) {
+            alert('Você precisa autenticar com o Spotify primeiro!');
+            //redireciona para o login (index.html)
+            window.location.href = window.location.origin;
+        }
+        if (!userId) {
+            alert('Erro ao obter informações do usuário.');
+            //redireciona para o login (index.html)
+            window.location.href = window.location.origin;
+        }
+
+        let songData = {
+            id: '',
+            duration: 0,
+        }
+
+        async function search() {
+            // Remover o conteúdo da tela anterior
+            document.getElementById('trackInfo').classList.add('hidden');
+            document.getElementById('activity-finished').classList.add('hidden');
+            
+            // Obter informações da música atual
+            const response = await fetch(`${window.location.origin}/api/spotify-track`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+
+            if (!response.ok) {
+                alert('Erro ao buscar informações da música atual.');
+                return;
+            }
+
+            if (response.status === 204) {
+                alert('Nenhuma música tocando no Spotify. Por favor, inicie uma música e tente novamente.');
+                return;
+            }
+
+            const data = await response.json();
+
+            let milliseconds = data.duration;
+            let minutes = Math.floor(milliseconds / 60000);
+            let seconds = Math.floor((milliseconds % 60000) / 1000);
+
+            // Salvar informações da música atual
+            songData.id = data.id;
+            songData.duration = (minutes * 60) + seconds;
+
+            // Exibir informações da música atual
+            document.getElementById('trackName').innerText = data.name;
+            document.getElementById('trackArtist').innerText = data.artist;
+            document.getElementById('trackDuration').innerText = `${minutes}m${seconds}s`;
+            document.getElementById('trackAlbumImg').src = data.album_img;
+            document.getElementById('trackInfo').classList.remove('hidden');
+            document.getElementById('actions').classList.remove('hidden');
+            document.getElementById('infoStart').classList.add('hidden');
+        };
+
+        async function start() {
+            // Iniciar a atividade
+
+            // Dá play na música atual no tempo 0
+            const response = await fetch(`${window.location.origin}/api/spotify-start`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                },
+            });
+
+            if (!response.ok) {
+                alert('Erro ao iniciar a atividade.');
+                return;
+            }
+
+            // Exibir status da atividade
+            document.getElementById('status').classList.remove('hidden');
+            document.getElementById('actions').classList.add('hidden');
+
+            try {
+                // Iniciar o cronômetro e a requisição ao ESP32 em paralelo
+                const [responseESP, timer] = await Promise.all([fetchESPData(), startTimer(10)]);
+
+                // Processa os dados ao final da contagem do cronômetro e da resposta ESP
+                document.getElementById('activity-finished').classList.remove('hidden');
+                document.getElementById('activity-time').innerText = Math.floor(responseESP.activeTime / 60).toFixed(2);
+                document.getElementById('activity-calories').innerText = responseESP.calories;
+
+                // Pausa a próxima música
+                await fetch(`${window.location.origin}/api/spotify-pause`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                });
+
+            } catch (error) {
+                console.error("Erro na execução:", error);
+            }
+
+        };
+
+        // Função para fazer a requisição ao ESP32
+        function fetchESPData() {
+            // Passa informações da música (id, duração) e o id do usuário
+            /*return fetch('http://') // Finalizar URL
+                .then(response => response.json())
+                .then(data => {
+                    // Retorna dados do ESP32 (tempo ativo e calorias queimadas)
+                    return {
+                        activeTime: data.activeTime,
+                        calories: data.caloriesBurned
+                    };
+                });
+            */
+           // Saída de teste
+           return {
+                activeTime: 127,
+                calories: 13
+           }
+        }
+
+        // Função para iniciar o cronômetro
+        function startTimer(duration) {
+            return new Promise(resolve => {
+                let time = duration;
+                let interval = setInterval(() => {
+                    if (time <= 0) {
+                        clearInterval(interval);
+                        document.getElementById('status').classList.add('hidden');
+                        resolve(); // Resolve o timer quando o tempo terminar
+                    } else {
+                        time--;
+                        const minutes = Math.floor(time / 60);
+                        const seconds = time % 60;
+                        document.getElementById('time-min').innerText = minutes < 10 ? `0${minutes}` : minutes;
+                        document.getElementById('time-sec').innerText = seconds < 10 ? `0${seconds}` : seconds;
+                    }
+                }, 1000);
+            });
+        }
+
+        function goBackToProfile() {
+            // Ennvia o token de acesso para a página de perfil
+            window.location.href = window.location.origin + '/profile#access_token=' + accessToken;
+        }
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify User Profile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 80%;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        h1 {
+            text-align: center;
+            color: #1DB954;
+        }
+        .hidden {
+            display: none;
+        }
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .profile-info img {
+            border-radius: 50%;
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+        }
+        .profile-info div {
+            max-width: 500px;
+        }
+        .profile-info h2 {
+            margin: 0;
+            color: #333;
+        }
+        .profile-info p {
+            font-size: 16px;
+            line-height: 1.5;
+            color: #555;
+        }
+        .activity-stats {
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .stat h3 {
+            margin: 5px 0;
+            color: #1DB954;
+        }
+        #actions {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #1DB954;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0f802d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Seu Perfil</h1>
+        <div id="profile" class="profile-info hidden">
+            <img src="" alt="User Image" id="user-image">
+            <div>
+                <h2 id="user-name"></h2>
+                <div class="activity-stats">
+                    <div class="stat">
+                        <h3 id="weight"></h3>
+                    </div>
+                    <div class="stat">
+                        <h3 id="activities-count"></h3>
+                    </div>
+                    <div class="stat">
+                        <h3 id="total-duration"></h3>
+                    </div>
+                    <div class="stat">
+                        <h3 id="calories-burned"></h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="actions">
+            <div id="weight-container">
+                <p>Edite seu peso:</p>
+                <input type="number" id="input-weight" placeholder="Peso (kg)">
+                <button id="button-save-weight" onclick="saveWeight()">Salvar</button>
+            </div>
+
+            <button id="button-redirect" class="hidden" onclick="redirectAtv()">
+                Começar Atividade
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = urlParams.get('access_token');
+
+        if (!accessToken) {
+            document.getElementById('profile').innerText = 'Access token not found.';
+            alert('Você precisa autenticar com o Spotify primeiro!');
+        }
+
+        var userData = {}
+
+        async function fetchSpotifyUserProfile() {
+            try {
+                const response = await fetch(`${window.location.origin}/api/spotify-user`, {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok. Status: ${response.status}`);
+                }
+
+                const dataUserSpotify = await response.json();
+
+                const registerUser = await fetch(`${window.location.origin}/api/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: dataUserSpotify.id,
+                        name: dataUserSpotify.name
+                    })
+                });
+
+                const registeredUserData = await registerUser.json();
+
+                userData = {
+                    id: dataUserSpotify.id,
+                    name: dataUserSpotify.name,
+                    image: dataUserSpotify.image_url,
+                    weight: registeredUserData.weight,
+                    activities: registeredUserData.activities,
+                    totalDuration: registeredUserData.totalDuration,
+                    caloriesBurned: registeredUserData.caloriesBurned
+                };
+
+                // Exibe os dados do usuário
+                document.getElementById('user-name').innerText = userData.name;
+                document.getElementById('user-image').src = userData.image;
+                document.getElementById('weight').innerText = `Peso: ${userData.weight} kg`;
+                document.getElementById('activities-count').innerText = `Atividades Realizadas: ${userData.activities}`;
+                document.getElementById('total-duration').innerText = `Duração Total: ${userData.totalDuration} mins`;
+                document.getElementById('calories-burned').innerText = `Calorias Queimadas: ${userData.caloriesBurned} kcal`;
+                document.getElementById('profile').classList.remove('hidden');
+
+                if (userData.weight) {
+                    document.getElementById('button-redirect').classList.remove('hidden');
+                }
+            } catch (error) {
+                document.getElementById('profile').innerText = `Error: ${error.message}`;
+            }
+        }
+
+        async function saveWeight() {
+            const weight = document.getElementById('input-weight').value;
+
+            if (!weight) {
+                alert('Preencha o campo de peso.');
+                return;
+            }
+
+            await fetch(`${window.location.origin}/api/users/${userData.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ weight })
+            }).then(response => {
+                if (response.status !== 204) {
+                    alert('Erro ao salvar o peso.');
+                    return;
+                }
+
+                alert('Peso salvo com sucesso!');
+
+                // Atualiza o valor de peso no objeto userData
+                userData.weight = weight;
+                document.getElementById('weight').innerText = `Peso: ${userData.weight} kg`;
+                document.getElementById('input-weight').value = '';
+
+                document.getElementById('button-redirect').classList.remove('hidden');
+            })
+        }
+        function redirectAtv() {
+            window.location.href = window.location.origin + '/activity#access_token=' + accessToken + '&user_id=' + userData.id;
+        }
+
+        window.onload = fetchSpotifyUserProfile;
+    </script>
+</body>
+</html>

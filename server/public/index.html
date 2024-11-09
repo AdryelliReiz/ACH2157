@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpotDance - Conecte-se ao Spotify</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        
+        .container {
+            width: 90%;
+            max-width: 400px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        h1 {
+            color: #1DB954;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        h3 {
+            color: #555;
+            font-weight: normal;
+            margin-bottom: 1rem;
+        }
+
+        p {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            color: #fff;
+            background-color: #1DB954;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background-color: #17a84b;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(1);
+        }
+
+        /* Animation for fade in effect */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SpotDance</h1>
+        <p>
+            SpotDance é um wearable que permite que você dance com suas músicas favoritas 
+            enquanto monitora seus movimentos de forma divertida e interativa.
+        </p>
+        
+        <h3>Conecte sua conta do Spotify e comece a se divertir!</h3>
+        
+        <button onclick="redirectToSpotifyAuth()">
+            Vamos lá!
+        </button>
+    </div>
+
+    <script>
+        // Redireciona para a página de autenticação do Spotify
+        function redirectToSpotifyAuth() {
+            // Pega informações do arquivo .env
+            const clientId = process.env.SPOTIFY_CLIENT_ID;
+            const redirectUri = `${window.location.origin}/profile`;
+            const scopes = 'user-read-private user-read-email user-read-playback-state user-modify-playback-state user-read-currently-playing app-remote-control streaming';
+            const authUrl = `https://accounts.spotify.com/authorize?response_type=token&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
+
+            window.location.href = authUrl;
+        }
+    </script>
+</body>
+</html>
