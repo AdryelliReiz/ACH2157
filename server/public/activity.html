@@ -124,7 +124,6 @@
             <button id="searchButton" onclick="search()">Buscar outra Música</button>
             <button id="redirectButton" onclick="goBackToProfile()">Voltar ao Início</button>
         </div>
-    
     </div>
 
     <script>
@@ -132,29 +131,53 @@
         const accessToken = urlParams.get('access_token');
         const userId = urlParams.get('user_id');
 
-        // Checar se tem um token de acesso
         if (!accessToken) {
             alert('Você precisa autenticar com o Spotify primeiro!');
-            //redireciona para o login (index.html)
             window.location.href = window.location.origin;
         }
         if (!userId) {
             alert('Erro ao obter informações do usuário.');
-            //redireciona para o login (index.html)
             window.location.href = window.location.origin;
         }
 
-        let songData = {
-            id: '',
-            duration: 0,
+        let songData = { id: '', duration: 0 };
+        let socket;
+
+        // Inicializar conexão WebSocket
+        function initWebSocket() {
+            socket = new WebSocket('ws://<ENDERECO_DO_SERVIDOR_WEBSOCKET>'); // Substitua pelo IP ou domínio
+
+            socket.onopen = () => {
+                console.log('Conexão WebSocket estabelecida.');
+            };
+
+            socket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                console.log('Mensagem recebida:', message);
+
+                if (message.type === 'sync') {
+                    updateTimer(message.remainingTime);
+                } else if (message.type === 'activity-finished') {
+                    showActivitySummary(message.summary);
+                }
+            };
+
+            socket.onclose = () => {
+                console.log('Conexão WebSocket fechada. Tentando reconectar...');
+                setTimeout(initWebSocket, 5000); // Tenta reconectar após 5 segundos
+            };
+
+            socket.onerror = (error) => {
+                console.error('Erro no WebSocket:', error);
+            };
         }
 
+        initWebSocket();
+
         async function search() {
-            // Remover o conteúdo da tela anterior
             document.getElementById('trackInfo').classList.add('hidden');
             document.getElementById('activity-finished').classList.add('hidden');
             
-            // Obter informações da música atual
             const response = await fetch(`${window.location.origin}/api/spotify-track`, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             });
@@ -170,16 +193,13 @@
             }
 
             const data = await response.json();
-
             let milliseconds = data.duration;
             let minutes = Math.floor(milliseconds / 60000);
             let seconds = Math.floor((milliseconds % 60000) / 1000);
 
-            // Salvar informações da música atual
             songData.id = data.id;
             songData.duration = (minutes * 60) + seconds;
 
-            // Exibir informações da música atual
             document.getElementById('trackName').innerText = data.name;
             document.getElementById('trackArtist').innerText = data.artist;
             document.getElementById('trackDuration').innerText = `${minutes}m${seconds}s`;
@@ -190,14 +210,9 @@
         };
 
         async function start() {
-            // Iniciar a atividade
-
-            // Dá play na música atual no tempo 0
             const response = await fetch(`${window.location.origin}/api/spotify-start`, {
                 method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
+                headers: { 'Authorization': `Bearer ${accessToken}` },
             });
 
             if (!response.ok) {
@@ -205,78 +220,38 @@
                 return;
             }
 
-            // Exibir status da atividade
             document.getElementById('status').classList.remove('hidden');
             document.getElementById('actions').classList.add('hidden');
 
-            try {
-                // Iniciar o cronômetro e a requisição ao ESP32 em paralelo
-                const [responseESP, timer] = await Promise.all([fetchESPData(), startTimer(10)]);
+            // Enviar mensagem ao WebSocket
+            const timerDuration = 10; // Exemplo: 10 segundos
+            socket.send(JSON.stringify({
+                type: 'start-activity',
+                timer: timerDuration,
+                musicId: songData.id,
+                userId: userId
+            }));
 
-                // Processa os dados ao final da contagem do cronômetro e da resposta ESP
-                document.getElementById('activity-finished').classList.remove('hidden');
-                document.getElementById('activity-time').innerText = Math.floor(responseESP.activeTime / 60).toFixed(2);
-                document.getElementById('activity-calories').innerText = responseESP.calories;
-
-                // Pausa a próxima música
-                await fetch(`${window.location.origin}/api/spotify-pause`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                    },
-                });
-
-            } catch (error) {
-                console.error("Erro na execução:", error);
-            }
-
+            startTimer(timerDuration);
         };
 
-        // Função para fazer a requisição ao ESP32
-        function fetchESPData() {
-            // Passa informações da música (id, duração) e o id do usuário
-            /*return fetch('http://') // Finalizar URL
-                .then(response => response.json())
-                .then(data => {
-                    // Retorna dados do ESP32 (tempo ativo e calorias queimadas)
-                    return {
-                        activeTime: data.activeTime,
-                        calories: data.caloriesBurned
-                    };
-                });
-            */
-           // Saída de teste
-           return {
-                activeTime: 127,
-                calories: 13
-           }
+        function updateTimer(remainingTime) {
+            const minutes = Math.floor(remainingTime / 60);
+            const seconds = remainingTime % 60;
+            document.getElementById('time-min').innerText = minutes < 10 ? `0${minutes}` : minutes;
+            document.getElementById('time-sec').innerText = seconds < 10 ? `0${seconds}` : seconds;
         }
 
-        // Função para iniciar o cronômetro
-        function startTimer(duration) {
-            return new Promise(resolve => {
-                let time = duration;
-                let interval = setInterval(() => {
-                    if (time <= 0) {
-                        clearInterval(interval);
-                        document.getElementById('status').classList.add('hidden');
-                        resolve(); // Resolve o timer quando o tempo terminar
-                    } else {
-                        time--;
-                        const minutes = Math.floor(time / 60);
-                        const seconds = time % 60;
-                        document.getElementById('time-min').innerText = minutes < 10 ? `0${minutes}` : minutes;
-                        document.getElementById('time-sec').innerText = seconds < 10 ? `0${seconds}` : seconds;
-                    }
-                }, 1000);
-            });
+        function showActivitySummary(summary) {
+            document.getElementById('status').classList.add('hidden');
+            document.getElementById('activity-finished').classList.remove('hidden');
+            document.getElementById('activity-time').innerText = summary.time;
+            document.getElementById('activity-calories').innerText = summary.calories;
         }
 
         function goBackToProfile() {
-            // Ennvia o token de acesso para a página de perfil
             window.location.href = window.location.origin + '/profile#access_token=' + accessToken;
         }
-
     </script>
 </body>
 </html>
