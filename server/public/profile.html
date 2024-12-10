@@ -24,7 +24,7 @@
             background-color: #fff;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 10px 0 10px -5px rgba(255, 0, 255, 0.5), -10px 0 10px -5px rgba(29, 185, 84, 0.5);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -32,12 +32,29 @@
         }
         h1 {
             text-align: center;
-            color: #1DB954;
+            background: linear-gradient(to right, #ff00ff, #1DB954);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         .hidden {
             display: none;
         }
+        .content {
+            width: 100%;
+            max-width: 720px;
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 2rem;
+        }
+        @media (min-width: 768px) {
+            .content {
+                flex-direction: row;
+            }
+        }
         .profile-info {
+            width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -68,69 +85,86 @@
         }
         .stat h3 {
             margin: 5px 0;
-            color: #1DB954;
+            background: linear-gradient(to right, #ff00ff, #1DB954);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         #actions {
+            width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 1rem;
         }
+        #weight-container div {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
         input[type="number"] {
+            width: 100%;
             padding: 10px;
             font-size: 16px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            margin-bottom: 1rem;
         }
         button {
             padding: 10px 20px;
             font-size: 16px;
-            background-color: #1DB954;
+            background: linear-gradient(to right, #ff00ff, #1DB954);
             color: #fff;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            transition: background 0.5s ease, transform 0.3s ease;
         }
         button:hover {
-            background-color: #0f802d;
+            background: linear-gradient(to right, #1DB954, #ff00ff);
+            transform: scale(1.05);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Seu Perfil</h1>
-        <div id="profile" class="profile-info hidden">
-            <img src="" alt="User Image" id="user-image">
-            <div>
-                <h2 id="user-name"></h2>
-                <div class="activity-stats">
-                    <div class="stat">
-                        <h3 id="weight"></h3>
-                    </div>
-                    <div class="stat">
-                        <h3 id="activities-count"></h3>
-                    </div>
-                    <div class="stat">
-                        <h3 id="total-duration"></h3>
-                    </div>
-                    <div class="stat">
-                        <h3 id="calories-burned"></h3>
+        
+        <div class="content" >
+            <div id="profile" class="profile-info hidden">
+                <img src="" alt="User Image" id="user-image">
+                <div>
+                    <h2 id="user-name"></h2>
+                    <div class="activity-stats">
+                        <div class="stat">
+                            <h3 id="weight"></h3>
+                        </div>
+                        <div class="stat">
+                            <h3 id="activities-count"></h3>
+                        </div>
+                        <div class="stat">
+                            <h3 id="total-duration"></h3>
+                        </div>
+                        <div class="stat">
+                            <h3 id="calories-burned"></h3>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div id="actions">
-            <div id="weight-container">
-                <p>Edite seu peso:</p>
-                <input type="number" id="input-weight" placeholder="Peso (kg)">
-                <button id="button-save-weight" onclick="saveWeight()">Salvar</button>
+    
+            <div id="actions">
+                <div id="weight-container">
+                    <p>Edite seu peso:</p>
+                    <div>
+                        <input type="number" id="input-weight" placeholder="Peso (kg)">
+                        <button id="button-save-weight" onclick="saveWeight()">Salvar</button>
+                    </div>
+                </div>
+    
+                <button id="button-redirect" class="hidden" onclick="redirectAtv()">
+                    Começar Atividade
+                </button>
             </div>
-
-            <button id="button-redirect" class="hidden" onclick="redirectAtv()">
-                Começar Atividade
-            </button>
         </div>
     </div>
 
@@ -138,6 +172,7 @@
         const urlParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = urlParams.get('access_token');
 
+        // Verifica se o token de acesso foi retornado
         if (!accessToken) {
             document.getElementById('profile').innerText = 'Access token not found.';
             alert('Você precisa autenticar com o Spotify primeiro!');
@@ -145,6 +180,7 @@
 
         var userData = {}
 
+        // Busca os dados do usuário na nossa API
         async function fetchSpotifyUserProfile() {
             try {
                 const response = await fetch(`${window.location.origin}/api/spotify-user`, {
@@ -157,6 +193,7 @@
 
                 const dataUserSpotify = await response.json();
 
+                // Registra o usuário na nossa API
                 const registerUser = await fetch(`${window.location.origin}/api/users`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -166,6 +203,9 @@
                     })
                 });
 
+                if (!registerUser.ok) {
+                    alert('Erro ao registrar o usuário.');
+                }
                 const registeredUserData = await registerUser.json();
 
                 userData = {
@@ -195,6 +235,7 @@
             }
         }
 
+        // Atualiza o peso do usuário
         async function saveWeight() {
             const weight = document.getElementById('input-weight').value;
 
@@ -223,10 +264,13 @@
                 document.getElementById('button-redirect').classList.remove('hidden');
             })
         }
+
+        // Redireciona para a página de atividade
         function redirectAtv() {
             window.location.href = window.location.origin + '/activity#access_token=' + accessToken + '&user_id=' + userData.id;
         }
 
+        // Carrega os dados do usuário ao carregar a página
         window.onload = fetchSpotifyUserProfile;
     </script>
 </body>

@@ -17,7 +17,9 @@
         }
         h1, h2 {
             text-align: center;
-            color: #1DB954;
+            background: linear-gradient(to right, #ff00ff, #1DB954);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             margin: 20px 0;
         }
         p {
@@ -36,6 +38,7 @@
             max-width: 100px;
             border-radius: 8px;
             margin-top: 10px;
+            box-shadow: 10px 0 10px -5px rgba(255, 0, 255, 0.5), -10px 0 10px -5px rgba(29, 185, 84, 0.5);
         }
         .track-infos-texts {
             display: flex;
@@ -51,8 +54,10 @@
         #redirectButton,
         #startButton {
             padding: 10px 20px;
-            background-color: #1DB954;
+            background: linear-gradient(to right, #ff00ff, #1DB954);
             color: #fff;
+            font-weight: 500;
+            font-size: 1.2rem;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -61,11 +66,14 @@
             text-align: center;
             margin-top: 20px;
         }
-        #status {
+        #status, #counter {
             text-align: center;
             margin-top: 20px;
         }
-        #status p {
+        #status p, #counter h3 {
+            background: linear-gradient(to right, #ff00ff, #1DB954);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
             font-size: 1.5rem;
             margin: 10px 0;
         }
@@ -85,7 +93,6 @@
         #activity-finished span {
             color: #1DB954;
         }
-
     </style>
 </head>
 <body>
@@ -111,6 +118,10 @@
         <div id="actions" class="hidden">
             <button id="startButton" onclick="start()">Iniciar Atividade</button>
         </div>
+
+        <div id="counter" class="hidden">
+            <h3>Começando em <span id="count"></span></h3>
+        </div>
     
         <div id="status" class="hidden">
             <h2>Agora é com você. Mexa-se!</h2>
@@ -121,7 +132,7 @@
         <div id="activity-finished" class="hidden">
             <h2>Atividade Finalizada!</h2>
             <p>Parabéns! Você dançou por <span id="activity-time"></span> minutos e queimou <span id="activity-calories"></span> calorias.</p>
-            <button id="searchButton" onclick="search()">Buscar outra Música</button>
+            <button id="searchAnotherButton" onclick="search()">Buscar outra Música</button>
             <button id="redirectButton" onclick="goBackToProfile()">Voltar ao Início</button>
         </div>
     </div>
@@ -130,49 +141,14 @@
         const urlParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = urlParams.get('access_token');
         const userId = urlParams.get('user_id');
+        const ESP_URL = "http://10.8.10.233:8000/start";
 
-        if (!accessToken) {
+        if (!accessToken || !userId) {
             alert('Você precisa autenticar com o Spotify primeiro!');
-            window.location.href = window.location.origin;
-        }
-        if (!userId) {
-            alert('Erro ao obter informações do usuário.');
             window.location.href = window.location.origin;
         }
 
         let songData = { id: '', duration: 0 };
-        let socket;
-
-        // Inicializar conexão WebSocket
-        function initWebSocket() {
-            socket = new WebSocket('ws://<ENDERECO_DO_SERVIDOR_WEBSOCKET>'); // Substitua pelo IP ou domínio
-
-            socket.onopen = () => {
-                console.log('Conexão WebSocket estabelecida.');
-            };
-
-            socket.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-                console.log('Mensagem recebida:', message);
-
-                if (message.type === 'sync') {
-                    updateTimer(message.remainingTime);
-                } else if (message.type === 'activity-finished') {
-                    showActivitySummary(message.summary);
-                }
-            };
-
-            socket.onclose = () => {
-                console.log('Conexão WebSocket fechada. Tentando reconectar...');
-                setTimeout(initWebSocket, 5000); // Tenta reconectar após 5 segundos
-            };
-
-            socket.onerror = (error) => {
-                console.error('Erro no WebSocket:', error);
-            };
-        }
-
-        initWebSocket();
 
         async function search() {
             document.getElementById('trackInfo').classList.add('hidden');
@@ -210,31 +186,101 @@
         };
 
         async function start() {
-            const response = await fetch(`${window.location.origin}/api/spotify-start`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${accessToken}` },
-            });
-
-            if (!response.ok) {
-                alert('Erro ao iniciar a atividade.');
-                return;
-            }
-
-            document.getElementById('status').classList.remove('hidden');
+            // Contagem regressiva para iniciar a atividade
             document.getElementById('actions').classList.add('hidden');
+            document.getElementById('counter').classList.remove('hidden');
 
-            // Enviar mensagem ao WebSocket
-            const timerDuration = 10; // Exemplo: 10 segundos
-            socket.send(JSON.stringify({
-                type: 'start-activity',
-                timer: timerDuration,
-                musicId: songData.id,
-                userId: userId
-            }));
+            let countdown = 3;
 
-            startTimer(timerDuration);
-        };
+            const countdownInterval = setInterval(() => {
+                document.getElementById('count').innerText = countdown;
+                if (countdown === 1) {
+                    clearInterval(countdownInterval);
+                    startMusic();
+                } else {
+                    countdown--;
+                }
+            }, 1000);
 
+            async function startMusic() {
+                const response = await fetch(`${window.location.origin}/api/spotify-start`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${accessToken}` },
+                });
+
+                if (!response.ok) {
+                    alert('Erro ao tocar a música.');
+                    return;
+                }
+
+                document.getElementById('counter').classList.add('hidden');
+                document.getElementById('status').classList.remove('hidden');
+
+                const timerDuration = songData.duration;
+
+                // Enviar a requisição para o ESP32 e esperar pela resposta
+                const espResponse = fetch(ESP_URL, {
+                    method: 'PUT',
+                    body: JSON.stringify({ timer_ms: timerDuration*1000 }),
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'no-cors',
+                }).then(response => response.json())
+                .catch(error => console.error('Erro ao se comunicar com o ESP32:', error));
+
+                console.log(espResponse)
+
+                // Depois da atividade ser iniciada, esperar o tempo da música
+                let remainingTime = timerDuration;
+                const timerInterval = setInterval(() => {
+                    if (remainingTime <= 0) {
+                        clearInterval(timerInterval);
+                    } else {
+                        updateTimer(remainingTime);
+                        remainingTime -= 1000;
+                    }
+                }, 1000);
+
+                // Pausa a música no Spotify
+                await fetch(`${window.location.origin}/api/spotify-pause`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${accessToken}` },
+                }).catch(error => console.error('Erro ao pausar a música:', error));
+
+                // Requisita as informações da atividade finalizada para o esp
+                const activeTimeResponse = await fetch(`${ESP_URL}/finish`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'no-cors',
+                }).then(response => response.json())
+
+                // Atualiza o status da atividade
+                const activeTime = activeTimeResponse.active_time;
+
+                // Salva a atividade no banco de dados
+                const activityResponse = await fetch(`${window.location.origin}/api/activities`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId,
+                        musicId: songData.id,
+                        duration: activeTime,
+                        date: new Date().toISOString(),
+                    })
+                });
+
+                // Atualiza a página com o resumo da atividade
+                if (activityResponse.ok) {
+                    showActivitySummary({
+                        time: activeTime,
+                        calories: activeTimeResponse.caloriesBurned
+                    });
+                } else {
+                    alert('Erro ao salvar a atividade.');
+                }
+            }
+        }
+
+        // Atualiza o timer na tela
         function updateTimer(remainingTime) {
             const minutes = Math.floor(remainingTime / 60);
             const seconds = remainingTime % 60;
@@ -242,15 +288,18 @@
             document.getElementById('time-sec').innerText = seconds < 10 ? `0${seconds}` : seconds;
         }
 
-        function showActivitySummary(summary) {
+        function finishActivity() {
             document.getElementById('status').classList.add('hidden');
             document.getElementById('activity-finished').classList.remove('hidden');
+        }
+
+        function showActivitySummary(summary) {
             document.getElementById('activity-time').innerText = summary.time;
             document.getElementById('activity-calories').innerText = summary.calories;
         }
 
         function goBackToProfile() {
-            window.location.href = window.location.origin + '/profile#access_token=' + accessToken;
+            window.location.href = '/profile';
         }
     </script>
 </body>

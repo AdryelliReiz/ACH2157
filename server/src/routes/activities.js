@@ -20,7 +20,7 @@ async function activityRoutes(fastify, options) {
         const caloriesBurned = 4.5 * user.weight * (duration / 60);
     
         const result = await db.prepare('INSERT INTO activities (userId, musicId, duration, caloriesBurned, date) VALUES (?, ?, ?, ?, ?)').run(userId, musicId, duration, caloriesBurned, date);
-        reply.send({ id: result.lastID, userId, musicId, duration, date });
+        reply.send({ id: result.lastID, userId, musicId, duration, date, caloriesBurned });
     });
 
     // Rota para listar todas as atividades

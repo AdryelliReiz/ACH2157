@@ -1,138 +1,123 @@
-import socket
+import usocket as socket
 import ujson
 import machine
 import ubinascii
-import asyncio
+import uasyncio as asyncio
 import service
 import leds
 import urequests  # Para enviar requisições HTTP
+import uhashlib as hashlib
+import ubinascii
 
-# Configuração do dispositivo
-print("hello")
-name = "Wearable SpotDance"
-device_id = ubinascii.hexlify(machine.unique_id()).decode()
+# Definir o WebSocket
+class WebSocketServer:
+    def __init__(self, port):
+        self.port = port
+        self.server = None
 
-# Configuração do servidor
-HOST = ''  # Escuta em todas as interfaces
-PORT = 8000
-
-# URL da API para registrar a atividade
-API_URL = "http://<ENDERECO_DA_API>/api/register-activity"  # Substitua pelo endpoint real
-
-# Função para lidar com cada conexão
-async def handle_connection(client_socket):
-    try:
-        # Receber os dados da requisição
-        request = client_socket.recv(1024).decode()
-        print("Requisição recebida:")
-        print(request)
-
-        # Parse do corpo da requisição para JSON
-        if "POST /start" in request:
-            body = request.split("\r\n\r\n")[1]
-            data = ujson.loads(body)
-            timer_ms = data.get("timer_ms", 0)
-            user_id = data.get("userId")
-            music_id = data.get("musicId")
-            timer = timer_ms / 1000  # Convertendo para segundos
-
-            print("Timer (ms):", timer_ms)
-            print("Timer (s):", timer)
-
-            # Processar o timer
-            while timer > 0:
-                print("Timer:", timer)
-                state = service.observation_sensors()  # Verifica o estado dos sensores
-                if state:
-                    print("LEDs ON")
-                    asyncio.create_task(leds.start_leds())  # Liga os LEDs
-                else:
-                    print("LEDs OFF")
-                    asyncio.create_task(leds.stop_leds())  # Desliga os LEDs
-                
-                # Atualizar o tempo ativo durante a execução do timer
-                active_time = service.get_active_time()
-
-                # Dados para enviar durante a execução do timer
-                update_data = {
-                    'active_time': active_time,
-                    'userId': user_id,
-                    'musicId': music_id,
-                    'deviceId': device_id
-                }
-
-                # Enviar os dados de atividade enquanto o timer está contando
-                response = ujson.dumps(update_data)
-                client_socket.sendall((
-                    "HTTP/1.1 200 OK\r\n"
-                    "Content-Type: application/json\r\n"
-                    "Content-Length: {}\r\n\r\n{}"
-                ).format(len(response), response).encode())
-
-                await asyncio.sleep(1)  # A cada 1 segundo, atualizar
-
-                timer -= 1  # Diminui 1 segundo
-
-            # Após o timer terminar, registrar a atividade final
-            final_active_time = service.get_active_time()
-            service.reset_observation()  # Reseta os sensores
-
-            # Enviar a atividade final para a API
-            activity_data = {
-                "userId": user_id,
-                "musicId": music_id,
-                "deviceId": device_id,
-                "activeTime": final_active_time,
-            }
-            try:
-                response = urequests.post(API_URL, json=activity_data)
-                print("Resposta da API:", response.text)
-                response.close()
-            except Exception as e:
-                print("Erro ao registrar a atividade:", e)
-
-            # Resposta final com o tempo total
-            response = ujson.dumps({'active_time': final_active_time})
-            client_socket.sendall((
-                "HTTP/1.1 200 OK\r\n"
-                "Content-Type: application/json\r\n"
-                "Content-Length: {}\r\n\r\n{}"
-            ).format(len(response), response).encode())
-
-        else:
-            # Resposta padrão para outras rotas
-            client_socket.sendall((
-                "HTTP/1.1 404 Not Found\r\n"
-                "Content-Type: text/plain\r\n"
-                "Content-Length: 13\r\n\r\n404 Not Found"
-            ).encode())
-
-    except Exception as e:
-        print("Erro ao lidar com a conexão:", e)
-        # Enviar uma resposta de erro genérica para o cliente, caso haja exceções
-        error_response = "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 21\r\n\r\n500 Internal Server Error"
-        client_socket.sendall(error_response.encode())
-    finally:
-        # Fechar o socket após o tratamento
-        client_socket.close()
-
-# Inicializar o servidor
-async def start_server():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-        server_socket.bind((HOST, PORT))
-        server_socket.listen(5)
-        print("Servidor iniciado na porta", PORT)
+    def start(self):
+        # Criar o socket
+        addr = socket.getaddrinfo('0.0.0.0', self.port)[0][-1]
+        self.server = socket.socket()
+        self.server.bind(addr)
+        self.server.listen(1)
+        print('Servidor WebSocket iniciado na porta', self.port)
 
         while True:
-            client_socket, addr = server_socket.accept()
-            print("Conexão recebida de:", addr)
-            # Lidar com a conexão de forma assíncrona
-            asyncio.create_task(handle_connection(client_socket))
+            client, addr = self.server.accept()
+            print('Conexão de', addr)
+            self.handle_client(client)
 
-# Função para rodar o servidor de forma assíncrona
-async def run():
-    await start_server()
+    def handle_client(self, client):
+        # Inicializar a conexão WebSocket
+        self.handshake(client)
 
-# Iniciar a execução
-if __name__ == "__main__":
-    asyncio.run(run())
+        try:
+            while True:
+                # Receber a mensagem do cliente
+                data = self.receive_message(client)
+                if data:
+                    message = json.loads(data)
+                    print('Mensagem recebida:', message)
+                    
+                    if message.get('type') == 'start-activity':
+                        # Exibir a mensagem quando o tipo for 'start-activity'
+                        timer_ms = data.get("timer_ms", 0)
+                        user_id = data.get("userId")
+                        music_id = data.get("musicId")
+                        timer = timer_ms / 1000
+
+                        print("Timer (s):", timer)
+
+                    while timer > 0:
+                        state = service.observation_sensors()
+                        if state:
+                            asyncio.create_task(leds.start_leds())
+                        else:
+                            asyncio.create_task(leds.stop_leds())
+
+                        active_time = service.get_active_time()
+                        update_data = {
+                            'type': 'sync',
+                            'active_time': active_time,
+                            'userId': user_id,
+                            'musicId': music_id,
+                            'deviceId': device_id
+                        }
+                        response = ujson.dumps(update_data)
+                        client_socket.sendall((
+                            "HTTP/1.1 200 OK\r\n"
+                            "Content-Type: application/json\r\n"
+                            "Content-Length: {}\r\n\r\n{}"
+                        ).format(len(response), response).encode())
+
+                        await asyncio.sleep(1)
+                        timer -= 1
+
+                    final_active_time = service.get_active_time()
+                    service.reset_observation()
+
+                    activity_data = {
+                        "userId": user_id,
+                        "musicId": music_id,
+                        "deviceId": device_id,
+                        "activeTime": final_active_time,
+                    }
+                    try:
+                        response = urequests.post(API_URL, json=activity_data)
+                        print("Resposta da API:", response.text)
+
+                        # api retorna { id: result.lastID, userId, musicId, duration, date, caloriesBurned }
+                        # enviar duration e caloriesBurned via socket com type 'activity-finished'
+                        response.close()
+                    except Exception as e:
+                        print("Erro ao registrar a atividade:", e)
+
+                    response = ujson.dumps({'active_time': final_active_time})
+                    client_socket.send((
+                        "HTTP/1.1 200 OK\r\n"
+                        "Content-Type: application/json\r\n"
+                        "Content-Length: {}\r\n\r\n{}"
+                    ).format(len(response), response).encode())
+                        
+                time.sleep(1)
+        except Exception as e:
+            print('Erro no cliente:', e)
+        finally:
+            client.close()
+
+    def handshake(self, client):
+        # Realizar o "handshake" WebSocket
+        client.send(b"HTTP/1.1 101 Switching Protocols\r\n"
+                    b"Upgrade: websocket\r\n"
+                    b"Connection: Upgrade\r\n"
+                    b"Sec-WebSocket-Accept: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n")
+
+    def receive_message(self, client):
+        # Lê os dados do WebSocket
+        data = client.recv(1024)
+        return data.decode('utf-8')
+
+# Criar o servidor WebSocket e iniciar na porta 8000
+ws_server = WebSocketServer(port=8000)
+ws_server.start()

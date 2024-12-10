@@ -1,17 +1,19 @@
 import asyncio
 import leds
 import connect
-import socket
-#import routes
+#import socket  # Descomente esta linha quando a implementação de socket for necessária
+import routes
 
 async def main():
     leds.esp_on_led_effect()
     await asyncio.sleep(2)  # Pequeno delay para inicialização
-    # Executar o servidor
+    
+    # Executar o servidor de forma assíncrona
     try:
-        asyncio.run(socket.start_server())
+        await routes.start_server()  # Espera pela execução do servidor
     except KeyboardInterrupt:
         print("\nServidor encerrado.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main())  # Inicia o loop de eventos
+
