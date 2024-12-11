@@ -141,7 +141,7 @@
         const urlParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = urlParams.get('access_token');
         const userId = urlParams.get('user_id');
-        const ESP_URL = "http://10.8.10.233:8000/start";
+        const ESP_URL = "http://10.8.10.233:8000";
 
         if (!accessToken || !userId) {
             alert('Você precisa autenticar com o Spotify primeiro!');
@@ -186,99 +186,128 @@
         };
 
         async function start() {
-            // Contagem regressiva para iniciar a atividade
-            document.getElementById('actions').classList.add('hidden');
-            document.getElementById('counter').classList.remove('hidden');
+            try {
+                // Contagem regressiva para iniciar a atividade
+                document.getElementById('actions').classList.add('hidden');
+                document.getElementById('counter').classList.remove('hidden');
 
-            let countdown = 3;
-
-            const countdownInterval = setInterval(() => {
-                document.getElementById('count').innerText = countdown;
-                if (countdown === 1) {
-                    clearInterval(countdownInterval);
-                    startMusic();
-                } else {
-                    countdown--;
-                }
-            }, 1000);
-
-            async function startMusic() {
-                const response = await fetch(`${window.location.origin}/api/spotify-start`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${accessToken}` },
-                });
-
-                if (!response.ok) {
-                    alert('Erro ao tocar a música.');
-                    return;
-                }
-
-                document.getElementById('counter').classList.add('hidden');
-                document.getElementById('status').classList.remove('hidden');
-
-                const timerDuration = songData.duration;
-
-                // Enviar a requisição para o ESP32 e esperar pela resposta
-                const espResponse = fetch(ESP_URL, {
-                    method: 'PUT',
-                    body: JSON.stringify({ timer_ms: timerDuration*1000 }),
-                    headers: { 'Content-Type': 'application/json' },
-                    mode: 'no-cors',
-                }).then(response => response.json())
-                .catch(error => console.error('Erro ao se comunicar com o ESP32:', error));
-
-                console.log(espResponse)
-
-                // Depois da atividade ser iniciada, esperar o tempo da música
-                let remainingTime = timerDuration;
-                const timerInterval = setInterval(() => {
-                    if (remainingTime <= 0) {
-                        clearInterval(timerInterval);
+                let countdown = 3;
+                const countdownInterval = setInterval(() => {
+                    document.getElementById('count').innerText = countdown;
+                    if (countdown === 1) {
+                        clearInterval(countdownInterval);
+                        startMusic();
                     } else {
-                        updateTimer(remainingTime);
-                        remainingTime -= 1000;
+                        countdown--;
                     }
                 }, 1000);
 
-                // Pausa a música no Spotify
-                await fetch(`${window.location.origin}/api/spotify-pause`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${accessToken}` },
-                }).catch(error => console.error('Erro ao pausar a música:', error));
+                async function startMusic() {
+                    try {
+                        // Inicia a música no Spotify
+                        const response = await fetch(`${window.location.origin}/api/spotify-start`, {
+                            method: 'PUT',
+                            headers: { 'Authorization': `Bearer ${accessToken}` },
+                        });
 
-                // Requisita as informações da atividade finalizada para o esp
-                const activeTimeResponse = await fetch(`${ESP_URL}/finish`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                    mode: 'no-cors',
-                }).then(response => response.json())
+                        if (!response.ok) {
+                            alert('Erro ao tocar a música.');
+                            return;
+                        }
 
-                // Atualiza o status da atividade
-                const activeTime = activeTimeResponse.active_time;
+                        // Atualiza a interface
+                        document.getElementById('counter').classList.add('hidden');
+                        document.getElementById('status').classList.remove('hidden');
 
-                // Salva a atividade no banco de dados
-                const activityResponse = await fetch(`${window.location.origin}/api/activities`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId,
-                        musicId: songData.id,
-                        duration: activeTime,
-                        date: new Date().toISOString(),
-                    })
-                });
+                        const timerDuration = songData.duration * 1000; // Em milissegundos
 
-                // Atualiza a página com o resumo da atividade
-                if (activityResponse.ok) {
-                    showActivitySummary({
-                        time: activeTime,
-                        calories: activeTimeResponse.caloriesBurned
-                    });
-                } else {
-                    alert('Erro ao salvar a atividade.');
+                        // Envia a requisição para o ESP32 para iniciar o timer
+                        const espResponse = await fetch(`${ESP_URL}/start`, {
+                            method: 'POST',
+                            body: JSON.stringify({ timer_ms: timerDuration }),
+                            headers: { 'Content-Type': 'application/json' },
+                        }).catch(error => {
+                            console.error('Erro ao se comunicar com o ESP32:', error);
+                        });
+
+                        if (!espResponse || !espResponse.ok) {
+                            // Pausa a música no Spotify
+                            await fetch(`${window.location.origin}/api/spotify-pause`, {
+                                method: 'PUT',
+                                headers: { 'Authorization': `Bearer ${accessToken}` },
+                            });
+
+                            alert('Erro ao se comunicar com o ESP32.');
+                            return;
+                        }
+
+                        // Inicia o contador de tempo
+                        let remainingTime = timerDuration / 1000; // Converte para segundos
+                        const timerInterval = setInterval(() => {
+                            if (remainingTime <= 0) {
+                                clearInterval(timerInterval);
+                                onTimerEnd(); // Executa o código após o contador terminar
+                            } else {
+                                updateTimer(remainingTime);
+                                remainingTime--;
+                            }
+                        }, 1000);
+
+                        // Função para executar ao final do contador
+                        async function onTimerEnd() {
+                            try {
+                                // Pausa a música no Spotify
+                                await fetch(`${window.location.origin}/api/spotify-pause`, {
+                                    method: 'PUT',
+                                    headers: { 'Authorization': `Bearer ${accessToken}` },
+                                });
+
+                                // Solicita os dados da atividade ao ESP32
+                                const activeTimeResponse = await fetch(`${ESP_URL}/active-time`, {
+                                    method: 'GET',
+                                    headers: { 'Content-Type': 'application/json' },
+                                }).catch(error => {
+                                    console.error('Erro ao obter dados da atividade do ESP32:', error);
+                                });
+
+                                if (!activeTimeResponse) {
+                                    alert('Erro ao obter dados da atividade do ESP32.');
+                                    return;
+                                }
+
+                                const { active_time: activeTime, caloriesBurned } = await activeTimeResponse.json();
+
+                                // Salva a atividade no banco de dados
+                                const activityResponse = await fetch(`${window.location.origin}/api/activities`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        userId,
+                                        musicId: songData.id,
+                                        duration: activeTime,
+                                        date: new Date().toISOString(),
+                                    }),
+                                });
+
+                                if (activityResponse.ok) {
+                                    // Atualiza a página com o resumo da atividade
+                                    showActivitySummary({ time: activeTime, calories: caloriesBurned });
+                                } else {
+                                    alert('Erro ao salvar a atividade.');
+                                }
+                            } catch (error) {
+                                console.error('Erro durante o processamento final da atividade:', error);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Erro ao iniciar a música:', error);
+                    }
                 }
+            } catch (error) {
+                console.error('Erro geral no processo:', error);
             }
         }
+
 
         // Atualiza o timer na tela
         function updateTimer(remainingTime) {

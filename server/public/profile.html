@@ -113,7 +113,7 @@
         button {
             padding: 10px 20px;
             font-size: 16px;
-            background: linear-gradient(to right, #ff00ff, #1DB954);
+            background: #ff00ff;
             color: #fff;
             border: none;
             border-radius: 4px;
@@ -121,8 +121,30 @@
             transition: background 0.5s ease, transform 0.3s ease;
         }
         button:hover {
-            background: linear-gradient(to right, #1DB954, #ff00ff);
+            background: #1DB954;
             transform: scale(1.05);
+        }
+
+        .activities-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        #activities-content {
+            width: 100%;
+        }
+        #activities-content ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #activities-content li {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -166,6 +188,16 @@
                 </button>
             </div>
         </div>
+
+        <div class="content">
+            <div class="activities-container">
+                <button id="toggle-activities" onclick="toggleActivities()">Mostrar Atividades</button>
+
+                <div id="activities-content" class="hidden">
+                    <ul id="activities-list"></ul>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -179,6 +211,7 @@
         }
 
         var userData = {}
+        var userActivities = []
 
         // Busca os dados do usuário na nossa API
         async function fetchSpotifyUserProfile() {
@@ -265,13 +298,74 @@
             })
         }
 
+        // Busca os dados do usuário na nossa API
+        async function fetchActivitiesUserProfile() {
+            try {
+            const response = await fetch(`${window.location.origin}/api/users/${userData.id}/activities`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok. Status: ${response.status}`);
+            }
+
+            // Retorna uma lista de atividades
+            const data = await response.json();
+
+            // Atualiza os dados do usuário
+            userActivities = data.map(activity => ({
+                id: activity.id,
+                musicId: activity.musicId,
+                duration: activity.duration,
+                caloriesBurned: activity.caloriesBurned,
+                date: new Date(activity.date).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+                })
+            }));
+
+            // Exibe as atividades na lista
+            displayActivities();
+            } catch (error) {
+            console.error('Erro ao buscar atividades:', error);
+            }
+        }
+
         // Redireciona para a página de atividade
         function redirectAtv() {
             window.location.href = window.location.origin + '/activity#access_token=' + accessToken + '&user_id=' + userData.id;
         }
 
-        // Carrega os dados do usuário ao carregar a página
-        window.onload = fetchSpotifyUserProfile;
+        function toggleActivities() {
+            const activitiesContainer = document.getElementById('activities-content');
+            const toggleButton = document.getElementById('toggle-activities');
+
+            if (activitiesContainer.classList.contains('hidden')) {
+                activitiesContainer.classList.remove('hidden');
+                toggleButton.innerText = 'Ocultar Atividades';
+            } else {
+                activitiesContainer.classList.add('hidden');
+                toggleButton.innerText = 'Mostrar Atividades';
+            }
+        }
+
+        function displayActivities() {
+            const activitiesList = document.getElementById('activities-list');
+            activitiesList.innerHTML = '';
+
+            userActivities.forEach(activity => {
+                const listItem = document.createElement('li');
+                listItem.innerText = `Música: ${activity.musicId}, Duração: ${activity.duration} mins, Calorias: ${activity.caloriesBurned} kcal, Data: ${activity.date}`;
+                activitiesList.appendChild(listItem);
+            });
+        }
+
+        // Fetch activities when the page loads
+        window.onload = async function() {
+            await fetchSpotifyUserProfile();
+            await fetchActivitiesUserProfile();
+        };
     </script>
 </body>
 </html>

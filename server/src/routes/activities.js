@@ -38,7 +38,7 @@ async function activityRoutes(fastify, options) {
             return reply.status(404).send({ error: 'User not found' });
         }
 
-        const activities = await db.prepare('SELECT * FROM activities WHERE userId = ?').all(request.params.id);
+        const activities = await db.prepare('SELECT * FROM activities WHERE userId = ? ORDER BY date DESC').all(request.params.id);
         reply.send(activities);
     });
 
