@@ -112,7 +112,7 @@
         // Redireciona para a página de autenticação do Spotify
         function redirectToSpotifyAuth() {
             // Pega informações do arquivo .env
-            const clientId = "5cdfeae7ac74484c93a3c8ba9a10f779";
+            const clientId = ""; //Client ID do Spotify
             const redirectUri = `http://127.0.0.1:8080/profile`;
             const scopes = 'user-read-private user-read-email user-read-playback-state user-modify-playback-state user-read-currently-playing app-remote-control streaming';
             const authUrl = `https://accounts.spotify.com/authorize?response_type=token&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;

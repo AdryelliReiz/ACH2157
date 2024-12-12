@@ -27,6 +27,10 @@ Para iniciar o servidor, siga os passos abaixo:
 
 O servidor estará rodando na porta `8080`.
 
+## Configuração da aplicação Spotify
+
+No arquivo ``public/index.html`, é necessário colocar o clientId referente a sua aplicação do Spotify. Você consegue criar e configurar uma aplicação [aqui](https://developer.spotify.com/dashboard).
+
 ## Rotas do Web Site
 
 ### Rotas Web App
