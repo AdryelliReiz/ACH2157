@@ -166,7 +166,7 @@ Este módulo fornece rotas para a manipulação de dados de atividades físicas 
 **Parâmetros do Corpo da Requisição (JSON):**
 - `userId` (obrigatório, string): Identificador do usuário que realizou a atividade.
 - `musicId` (obrigatório, string): Identificador da música associada à atividade.
-- `duration` (obrigatório, número): Duração da atividade em minutos.
+- `duration` (obrigatório, número): Duração da atividade em segundos.
 - `date` (obrigatório, string): Data da atividade (formato `YYYY-MM-DD`).
 
 **Resposta:**

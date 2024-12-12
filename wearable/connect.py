@@ -6,8 +6,8 @@ sta = network.WLAN(network.STA_IF)
 sta.active(True)
 
 #nome e senha da rede wifi que será conectada (2.4G)
-wifi=""
-password=""
+WIFI=""
+PASSWORD=""
 
 sta.connect(wifi, password)
 

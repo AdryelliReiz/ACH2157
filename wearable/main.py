@@ -1,7 +1,6 @@
 import asyncio
 import leds
 import connect
-#import socket  # Descomente esta linha quando a implementação de socket for necessária
 import routes
 
 async def main():

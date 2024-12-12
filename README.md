@@ -6,14 +6,12 @@ Este projeto visa desenvolver uma roupa interativa que estimula o usuário a pra
 ## Componentes do Sistema
 
 ### 1. **Roupa**
-- **Jaqueta**: Material a ser definido, que será o suporte principal para os circuitos de LEDs e acelerômetros.
-- **Calça**: Estrutura já disponível, com canaletas internas conectando o circuito da tornozeleira ao circuito da jaqueta.
+- **Vestido**: Feito com tecido crepe, desenvolvido sob medida.
 
 ### 2. **Circuito Eletrônico**
-- **Fitas de LED RGB Endereçável (Modelo WS2812)**: Distribuídas na roupa com 30 LEDs por metro (1 metro no total), sendo 50 cm para cada lado.
-- **Acelerômetros (4x)**: Localizados em cada braço e perna para capturar e monitorar movimentos específicos.
+- **Fitas de LED RGB Endereçável (Modelo WS2812)**: Distribuídas na roupa com 10 LEDs em cada fita.
+- **Acelerômetros (2x)**: Localizados em nos dois braços para capturar movimentos específicos.
 - **ESP32**: Microcontrolador responsável pela comunicação entre os sensores e a aplicação web.
-- **Cabos**: Tipos e tamanhos a serem definidos para conectar todos os componentes.
 
 ### 3. **Infraestrutura de Software**
 - **Servidor Web de Conexão e Controle**: Usando o Fastify (JavaScript) para comunicação com o ESP32 e gestão dos dados, também responsável por disponibilizar páginas web com interfaces para os usuários.
@@ -30,7 +28,7 @@ O servidor web permite que o usuário se autentique com sua conta do Spotify e f
 - **Tela de Atividade**: Após autenticação e inserção do peso, o usuário pode selecionar uma música para iniciar a atividade. A interface também fornece instruções sobre o processo, incluindo botões para iniciar a atividade e sincronizar o cronômetro com o início da música.
 
 ### 3. **Reatividade das Luzes**
-Os LEDs na roupa brilham em resposta ao movimento do usuário. Cada sensor de movimento controla uma seção dos LEDs, indicando visualmente a intensidade e a frequência dos movimentos em diferentes partes do corpo.
+Os LEDs na roupa brilham em resposta ao movimento do usuário, indicando visualmente a intensidade e a frequência dos movimentos em diferentes partes do corpo.
 
 ### 4. **Cronometragem e Monitoramento de Movimentos**
 O wearable calcula o tempo total de atividade com base nos períodos de movimento detectados pelos acelerômetros. O cronômetro é pausado quando os sensores não detectam movimento por um tempo definido e é reativado ao detectar movimento novamente.
@@ -38,7 +36,7 @@ O wearable calcula o tempo total de atividade com base nos períodos de moviment
 ### 5. **Cálculo de Calorias**
 Ao término de cada música, o sistema calcula uma estimativa de calorias gastas com base no tempo de atividade e no peso do usuário, utilizando a fórmula:
 
-**DE = METs da atividade x Peso Corporal (Kg) x Duração (min/60)**
+**DE = METs da atividade x Peso Corporal (Kg) x Duração (hora)**
 
 Exemplo: Dança de salão rápida tem um MET de 4,5.
 

@@ -94,7 +94,7 @@ async def get_active_time(request):
             response = Response.json({"active_time": active_time})
             return add_cors_headers(response)
     
-    return Response("Sensores não estão ativos.", status_code=400)
+    return Response("Sensores ainda estão ativos.", status_code=400)
         
 
 # Tratamento de preflight CORS com método OPTIONS
