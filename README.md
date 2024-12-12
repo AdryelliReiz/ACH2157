@@ -1,10 +1,10 @@
-# Documentação do Projeto de Wearable Interativo para Estimular Exercícios
+# SPOTDANCE
 
 ## Objetivo
 Este projeto visa desenvolver uma roupa interativa que estimula o usuário a praticar atividades físicas por meio da dança. O wearable será capaz de monitorar os movimentos do corpo e interagir com o usuário visualmente, utilizando LEDs que reagem aos movimentos. A proposta é integrar moda e tecnologia para criar uma experiência motivadora e divertida, incentivando a prática de exercícios de forma lúdica e informativa.
 
 ## Documentação
-Dentro das pastas **wearable** e **server**, existe um arquivo README.md que contém a documentação de uso correspondente a cada parte.
+Dentro das pastas **wearable** e **server**, existe um arquivo `README.md` que contém a documentação de uso correspondente a cada parte.
 
 ## Componentes do Sistema
 
