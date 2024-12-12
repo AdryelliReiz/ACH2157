@@ -2,6 +2,8 @@ const fastify = require('fastify')({ logger: true });
 const sqlitePlugin = require('./plugins/sqlite');;
 const path = require('path');
 
+PORT=8080 // Porta padrão
+
 // Registrar o plugin de SQLite
 fastify.register(sqlitePlugin);
 
@@ -26,8 +28,8 @@ fastify.register(require('./routes/webApp'));
 // Inicia o servidor
 const start = async () => {
   try {
-    await fastify.listen({ port: 8080 });
-    console.log('Servidor iniciado no endereço => http://localhost:8080');
+    await fastify.listen({ port: PORT });
+    console.log(`Servidor iniciado. Acesse => http://localhost:${PORT}/`);	
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

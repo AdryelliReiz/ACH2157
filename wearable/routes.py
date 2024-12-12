@@ -7,6 +7,7 @@ import asyncio
 import service
 
 # Configuração inicial
+PORT=8000 # Porta do servidor
 name = "Wearable SpotDance"
 device_id = ubinascii.hexlify(machine.unique_id()).decode()
 active_time = 0
@@ -107,5 +108,5 @@ async def options(request):
 # Função para iniciar o servidor de forma assíncrona
 async def start_server():
     print("Iniciando servidor...")
-    await app.run(host='0.0.0.0', port=8000)  # Usando o método assíncrono
+    await app.run(host='0.0.0.0', port=PORT)  # Usando o método assíncrono
 
