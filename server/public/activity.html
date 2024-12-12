@@ -51,6 +51,7 @@
             text-align: center;
         }
         #searchButton,
+        #searchAnotherButton,
         #redirectButton,
         #startButton {
             padding: 10px 20px;
@@ -131,7 +132,7 @@
 
         <div id="activity-finished" class="hidden">
             <h2>Atividade Finalizada!</h2>
-            <p>Parabéns! Você dançou por <span id="activity-time"></span> minutos e queimou <span id="activity-calories"></span> calorias.</p>
+            <p>Parabéns! Você dançou por <span id="activity-time"></span> e queimou <span id="activity-calories"></span> calorias.</p>
             <button id="searchAnotherButton" onclick="search()">Buscar outra Música</button>
             <button id="redirectButton" onclick="goBackToProfile()">Voltar ao Início</button>
         </div>
@@ -141,7 +142,7 @@
         const urlParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = urlParams.get('access_token');
         const userId = urlParams.get('user_id');
-        const ESP_URL = "http://10.8.10.233:8000";
+        const ESP_URL = ""; // Insira a URL do ESP32 aqui
 
         if (!accessToken || !userId) {
             alert('Você precisa autenticar com o Spotify primeiro!');
@@ -220,7 +221,7 @@
                         document.getElementById('status').classList.remove('hidden');
 
                         const timerDuration = songData.duration * 1000; // Em milissegundos
-
+                        
                         // Envia a requisição para o ESP32 para iniciar o timer
                         const espResponse = await fetch(`${ESP_URL}/start`, {
                             method: 'POST',
@@ -290,8 +291,10 @@
                                 });
 
                                 if (activityResponse.ok) {
-                                    // Atualiza a página com o resumo da atividade
-                                    showActivitySummary({ time: activeTime, calories: caloriesBurned });
+                                    // Atualiza a interface
+                                    finishActivity();
+                                    // Mostra o resumo da atividade
+                                    showActivitySummary({ time: formatTime(activeTime), calories: caloriesBurned });
                                 } else {
                                     alert('Erro ao salvar a atividade.');
                                 }
@@ -327,8 +330,14 @@
             document.getElementById('activity-calories').innerText = summary.calories;
         }
 
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+
         function goBackToProfile() {
-            window.location.href = '/profile';
+            window.location.href = '/profile#access_token=' + accessToken;
         }
     </script>
 </body>

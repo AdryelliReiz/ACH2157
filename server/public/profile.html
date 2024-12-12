@@ -247,7 +247,7 @@
                     image: dataUserSpotify.image_url,
                     weight: registeredUserData.weight,
                     activities: registeredUserData.activities,
-                    totalDuration: registeredUserData.totalDuration,
+                    totalDuration: Math.floor(registeredUserData.totalDuration / 60),
                     caloriesBurned: registeredUserData.caloriesBurned
                 };
 
